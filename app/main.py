@@ -14,5 +14,4 @@ app.include_router(task.router, prefix="/api", tags=["Task Status"])
 
 @app.get("/")
 async def root():
-    # Здесь можно сделать простой HTML-интерфейс, как мы обсуждали
     return {"message": "Welcome to ML-Lab API. Access /docs for Swagger UI."}
