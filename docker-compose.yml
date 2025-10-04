@@ -1,0 +1,62 @@
+services:
+  # 1. СЕРВИС BROKER (REDIS)
+  broker:
+    image: redis:7-alpine # образ Redis
+    container_name: ml_lab_redis
+    ports:
+      - "6379:6379" # открываем порт для удобства
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data # сохраняем данные Redis
+  # 2. СЕРВИС DB (POSTGRES)
+  db:
+    image: postgres:15-alpine
+    container_name: ml_lab_db
+    environment:
+      POSTGRES_USER: ${DB_USER}       # берется из .env файла
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  # 3. СЕРВИС API (FASTAPI)
+  api:
+    build: 
+      context: . # ищем Dockerfile в корне
+      dockerfile: Dockerfile
+    container_name: ml_lab_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - broker # API должен запуститься после DB и Redis
+    environment:
+      # Передаем адрес Redis и DB в API
+      REDIS_URL: redis://broker:6379/0 
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
+      
+  # 4. СЕРВИС WORKER (CELERY)
+  worker:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: ml_lab_worker
+    # команда запускает Celery с 4 процессами
+    command: celery -A app.worker.celery_app worker -l info -c 4 
+    volumes:
+      - .:/app
+    depends_on:
+      - broker # Worker зависит только от Redis
+    environment:
+      # orker тоже должен знать, где Redis
+      REDIS_URL: redis://broker:6379/0 
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASS}@db:5432/${DB_NAME}
+
+volumes:
+  redis_data:
+  postgres_data:
