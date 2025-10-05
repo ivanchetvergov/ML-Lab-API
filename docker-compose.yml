@@ -9,17 +9,17 @@ services:
     volumes:
       - redis_data:/data # сохраняем данные Redis
   # 2. СЕРВИС DB (POSTGRES)
-  db:
-    image: postgres:15-alpine
-    container_name: ml_lab_db
-    environment:
-      POSTGRES_USER: ${DB_USER}       # берется из .env файла
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: ml_lab_db
+  #   environment:
+  #     POSTGRES_USER: ${DB_USER}       # берется из .env файла
+  #     POSTGRES_PASSWORD: ${DB_PASS}
+  #     POSTGRES_DB: ${DB_NAME}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5433:5432"
 
   # 3. СЕРВИС API (FASTAPI)
   api:
