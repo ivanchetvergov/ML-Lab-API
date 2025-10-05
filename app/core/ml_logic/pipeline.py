@@ -12,11 +12,6 @@ from app.schemas.tasks_schemas import TaskResult
 from app.core.ml_logic.data_loader import simulate_data_load
 from app.core.ml_logic.model_factory import init_model
 
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
 MODEL_SAVE_PATH = "/tmp/models"
 os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
 
@@ -59,11 +54,11 @@ def full_training_pipeline(
 
     progress(1.0, "done")
 
-    return {
-        "accuracy": acc,
-        "f1_score": f1,
-        "model_type": model_type,
-        "data_id": data_id,
-        "trained_at": datetime.now(),
-        "model_path": full_path
-    }
+    return TaskResult(
+        accuracy = acc,
+        f1_score = f1,
+        model_type = model_type,
+        data_id = data_id,
+        trained_at = datetime.now(),
+        model_path = full_path
+    )

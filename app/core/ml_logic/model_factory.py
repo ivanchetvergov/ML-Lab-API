@@ -3,32 +3,45 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 
-# словарь поддерживаемых моделей и допустимых параметров
+from app.schemas.models_schemas import (
+    LogisticRegressionParams,
+    RandomForestParams,
+    SVCParams
+)
+
+# реестр моделей, использующий Pydantic-схемы
 MODEL_REGISTRY = {
     "LogisticRegression": {
         "class": LogisticRegression,
-        "allowed_params": {"penalty", "C", "max_iter", "solver", "fit_intercept"}
+        "schema": LogisticRegressionParams
     },
     "RandomForestClassifier": {
         "class": RandomForestClassifier,
-        "allowed_params": {"n_estimators", "max_depth", "min_samples_split", "min_samples_leaf"}
+        "schema": RandomForestParams
     },
     "SVC": {
         "class": SVC,
-        "allowed_params": {"C", "kernel", "degree", "gamma"}
+        "schema": SVCParams
     }
 }
 
-def init_model(model_type: str, params: dict):
+def init_model(model_type: str, raw_params: dict):
     """
-    инициализирует модель по названию и параметрам.
-    фильтрует только разрешённые параметры.
+    Инициализирует модель по названию и параметрам.
+    Использует Pydantic-схему для валидации и фильтрации параметров.
     """
     if model_type not in MODEL_REGISTRY:
         raise ValueError(f"unsupported model type: {model_type}")
-
-    model_info = MODEL_REGISTRY[model_type]
-    allowed = model_info["allowed_params"]
-    filtered = {k: v for k, v in params.items() if k in allowed}
     
-    return model_info["class"](**filtered)
+    model_info = MODEL_REGISTRY[model_type]
+    ModelClass = model_info['class']
+    ParamsSchema = model_info['schema']
+    
+    # --- 1 валидация данных
+    validated_params = ParamsSchema(**raw_params)
+
+    # --- 2 преобразование в словарь
+    filtered_params = validated_params.model_dump()
+    
+    # --- 3 инициализация и возврат
+    return ModelClass(**filtered_params)
