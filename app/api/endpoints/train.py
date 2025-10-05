@@ -1,7 +1,7 @@
 # app/api/endpoints/train.py
 
 from fastapi import APIRouter, Request
-from app.schemas.schemas import TrainRequest, TaskSubmitResponse
+from app.schemas.tasks_schemas import TrainRequest, TaskSubmitResponse
 from app.worker.tasks import train_model_task
 
 router = APIRouter(tags=["Training"])

@@ -1,85 +1,65 @@
-# app/worker/tasks.py
+# app/worker/tasks.py 
 
 from celery.utils.log import get_task_logger
-from datetime import datetime
 from celery import current_task
-from sklearn.linear_model import LogisticRegression # type: ignore
-from app.schemas.schemas import TaskResult 
 from app.worker.celery_app import celery_app
 
-import numpy as np
-import joblib 
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score
+# Импорт из новых модулей
+from app.core.ml_logic.pipeline import full_training_pipeline 
+from app.schemas.tasks_schemas import TaskResult 
 
 logger = get_task_logger(__name__)
 
-MODEL_SAVE_PATH = "/tmp/models" 
-
-def simulate_data_load(data_id: str):
-    """Simulate loading data based on data_id and return synthetic data."""
-
-    X = np.random.rand(100, 5) 
-    y = (X.sum(axis=1) > 2.5).astype(int) 
-    
-    return X, y
-
 @celery_app.task(bind=True)
-def train_model_task(self, data_id: str, model_type: str, params: dict, validation_split: float) -> TaskResult:
+def train_model_task(self, data_id: str,
+                     model_type: str, params: dict, 
+                     validation_split: float
+                     ):
     """
-    Main Celery task to train an ML model asynchronously.
+    Main Celery task: initiates the full ML training pipeline.
     """
     task_id = self.request.id
-    logger.info(f"Starting training for Task ID: {task_id}")
-    self.update_state(state='STARTED', meta={'progress': 0.0, 'message': 'Task initialized.'})
+    logger.info(f"Task {task_id}: received training request for model={model_type}, data={data_id}")
+    
+    # --- 1. define the progress callback function
+    def progress_callback(progress_value: float, message: str):
+        """Updates the Celery task state and meta info for status check endpoint."""
+        final_progress = min(1.0, progress_value)
+        self.update_state(
+            state='PROGRESS', 
+            meta={'progress': final_progress, 'message': message}
+        )
+        logger.info(f"Task {task_id} PROGRESS {int(final_progress*100)}%: {message}")
+
 
     try:
-        # --- 1  data loading and split
-        self.update_state(state='PROGRESS', meta={'progress': 0.1, 'message': 'Loading and splitting data...'})
-        X, y = simulate_data_load(data_id)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=validation_split, random_state=42)
-        
-        # --- 2 model init
-        self.update_state(state='PROGRESS', meta={'progress': 0.2, 'message': f'Initializing model: {model_type}'})
-        
-        if model_type == "LogisticRegression":
-            model = LogisticRegression(**params)
-        else:
-            raise ValueError(f"Unsupported model type: {model_type}")
+        # initial status update
+        progress_callback(0.0, "Starting full training pipeline.")
 
-        # --- 3 train
-        self.update_state(state='PROGRESS', meta={'progress': 0.5, 'message': 'Model training in progress...'})
-        model.fit(X_train, y_train) 
+        # --- 2. Execute the centralized ML pipeline
+        # NOTE: The pipeline returns a TaskResult object (Pydantic model)
+        result_object: TaskResult = full_training_pipeline(
+            data_id=data_id,
+            model_type=model_type,
+            params=params,
+            validation_split=validation_split,
+            progress_callback=progress_callback 
+        )
+        
+        logger.info(f"Task {task_id}: Training succeeded. Accuracy={result_object.accuracy:.4f}")
 
-        # --- 4 evaluation
-        self.update_state(state='PROGRESS', meta={'progress': 0.8, 'message': 'Evaluating model performance...'})
-        y_pred = model.predict(X_test)
-        
-        final_accuracy = accuracy_score(y_test, y_pred)
-        final_f1 = f1_score(y_test, y_pred, average='binary') # Assuming binary classification
-        
-        # --- 5 saving model
-        model_filename = f"{model_type}_{data_id}_{task_id}.pkl"
-        full_path = f"{MODEL_SAVE_PATH}/{model_filename}"
-        joblib.dump(model, full_path)
-        logger.info(f"Model saved to: {full_path}")
-        
-        # --- 6 metrics
-        final_metrics = {
-            "accuracy": final_accuracy, 
-            "f1_score": final_f1, 
-            "model_type": model_type,
-            "data_id": data_id,
-            "trained_at": datetime.now(),
-            "model_path": full_path 
-        }
-        
-        result_object = TaskResult(**final_metrics)
-        return result_object.model_dump()
+        # --- 3. return a dictionary that Celery can serialize (Crucial fix!)
+        return result_object.model_dump() 
 
     except Exception as e:
         error_message = f"Training failed: {type(e).__name__}: {str(e)}"
-        logger.error(error_message, exc_info=True)
-        self.update_state(state='FAILURE', meta={'message': error_message})
+        logger.error(f"Task {task_id} FAILURE: {error_message}", exc_info=True)
+        self.update_state(
+            state='FAILURE',
+            meta={
+                'progress': 1.0,
+                'message': error_message,
+                'exc_type': type(e).__name__
+            }
+        )
         raise
