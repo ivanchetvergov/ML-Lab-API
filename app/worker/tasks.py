@@ -15,8 +15,16 @@ def train_model_task(self, data_id: str,
                      model_type: str, params: dict, 
                      validation_split: float
                      ):
-    """
-    Main Celery task: initiates the full ML training pipeline.
+    """Основная таска для Celery. Отвечает за обучение модели
+
+    Args:
+        data_id (str): уникальный id датасета
+        model_type (str): вид модели (LinearReg, RandomForest ...)
+        params (dict): параметры (регуляризации, кол-во итераций и тд)
+        validation_split (float): сплит выборки (default = 0.2)
+
+    Returns:
+        dict: TaskResult pydantic схема трансформированная в словарь
     """
     task_id = self.request.id
         
@@ -52,7 +60,7 @@ def train_model_task(self, data_id: str,
         
         logger.info(f"TRAINING DONE | Accuracy={result_object.accuracy:.4f}")
 
-        # --- 3. return a dictionary that Celery can serialize (Crucial fix!)
+        # --- 3. return a dictionary that Celery can serialize
         return result_object.model_dump() 
 
     except Exception as e:
