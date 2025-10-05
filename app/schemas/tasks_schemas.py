@@ -33,7 +33,7 @@ class TaskResult(BaseModel):
     model_type: str = Field(..., description="model type that was trained")
     data_id: str = Field(..., description="dataset id used for training")
     trained_at: datetime = Field(default_factory=datetime.now, description="timestamp when training finished")
-
+    model_path: str = Field(..., description="path were saved model")
 
 class TaskStatusResponse(BaseModel):
     '''
