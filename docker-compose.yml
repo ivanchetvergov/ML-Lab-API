@@ -33,7 +33,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      # - db
       - broker # API должен запуститься после DB и Redis
     environment:
       # Передаем адрес Redis и DB в API
