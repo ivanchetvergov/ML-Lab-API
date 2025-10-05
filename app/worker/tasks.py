@@ -19,18 +19,22 @@ def train_model_task(self, data_id: str,
     Main Celery task: initiates the full ML training pipeline.
     """
     task_id = self.request.id
-    logger.info(f"Task {task_id}: received training request for model={model_type}, data={data_id}")
-    
+        
     # --- 1. define the progress callback function
     def progress_callback(progress_value: float, message: str):
         """Updates the Celery task state and meta info for status check endpoint."""
         final_progress = min(1.0, progress_value)
+        # обновляем статус в Redis (для API)
         self.update_state(
             state='PROGRESS', 
             meta={'progress': final_progress, 'message': message}
         )
-        logger.info(f"Task {task_id} PROGRESS {int(final_progress*100)}%: {message}")
+        log_message = (
+        f"PROGRESS {int(progress_value*100):3}% | " 
+        f"{message[:50]}"                          
+        )
 
+        logger.info(log_message)
 
     try:
         # initial status update
@@ -46,7 +50,7 @@ def train_model_task(self, data_id: str,
             progress_callback=progress_callback 
         )
         
-        logger.info(f"Task {task_id}: Training succeeded. Accuracy={result_object.accuracy:.4f}")
+        logger.info(f"TRAINING DONE | Accuracy={result_object.accuracy:.4f}")
 
         # --- 3. return a dictionary that Celery can serialize (Crucial fix!)
         return result_object.model_dump() 

@@ -21,7 +21,13 @@ celery_app.conf.update(
     accept_content=['json'],
     result_serializer='json',
     timezone='Europe/Moscow', 
-    enable_utc=True,
+        
+    worker_log_format='%(asctime)s | %(levelname)s | %(processName)s | %(message)s',
+    worker_task_log_format='%(asctime)s | %(levelname)s | Task: %(task_id).8s | %(message)s', 
+    worker_task_success_log_format='%(asctime)s | SUCCESS | Task: %(task_id).8s | took %(task_duration).4fs',
+    worker_task_failure_log_format='%(asctime)s | FAILURE | Task: %(task_id).8s | %(exc)s',
+    
+    enable_utc=True
 )
 
 if __name__ == '__main__':
