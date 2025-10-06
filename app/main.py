@@ -1,7 +1,7 @@
 # app/main.py
 
 from fastapi import FastAPI
-from app.api.endpoints import status, train, predict
+from app.api.endpoints import status, train, predict, db
 
 app = FastAPI(
     title="ML-Lab API:",
@@ -12,7 +12,7 @@ app = FastAPI(
 app.include_router(train.router, prefix="/api", tags=["Training"])
 app.include_router(status.router, prefix="/api", tags=["Task Status"])
 app.include_router(predict.router, prefix="/api", tags=["Predict"])
-
+app.include_router(db.router, prefix="/api", tags=["DB"])
 
 @app.get("/")
 async def root():

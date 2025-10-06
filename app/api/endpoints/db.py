@@ -38,7 +38,6 @@ def db_connection_status(db: Session = Depends(get_db)):
 def recreate_all_tables():
     """
     Удаляет и пересоздает все таблицы, определенные в Base.
-    Очистка данных, только для разработки.
     """
     try:        
         # Base.metadata содержит все наши модели
